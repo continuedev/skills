@@ -27,12 +27,6 @@ If no PR exists for the current branch, inform the user and stop.
 Gather the full picture of what needs to be addressed:
 
 ```bash
-# Get all review comments (including resolved ones for context)
-gh pr view --json reviews,comments
-
-# Get specific review threads that need resolution
-gh api repos/{owner}/{repo}/pulls/{pr_number}/comments --jq '.[] | select(.in_reply_to_id == null) | {path: .path, line: .line, body: .body, author: .user.login}'
-
 # Check for merge conflicts
 gh pr view --json mergeable,mergeStateStatus
 
@@ -40,64 +34,72 @@ gh pr view --json mergeable,mergeStateStatus
 gh pr checks
 ```
 
-### 3. Address Review Comments
+### 3. Fetch and Address ALL Review Threads
 
-For each unresolved review comment:
+**CRITICAL: You MUST fetch review threads using the GraphQL API and address every single unresolved one. This is NOT optional. Skipping this step is the #1 cause of PRs not being merge-ready.**
 
-1. **Read the comment** to understand what's being requested
-2. **Read the relevant code** in the file/line mentioned
-3. **Make the requested change** or explain why not if you disagree
-4. **Reply to the thread** explaining what you did (or why you chose not to)
-5. **Resolve the thread** after addressing it
-
-To resolve a review thread:
+**Step 3a: Fetch all review threads (MANDATORY)**
 
 ```bash
-# First, get the thread IDs
 gh api graphql -f query='
 {
   repository(owner: "{owner}", name: "{repo}") {
     pullRequest(number: {pr_number}) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: 100) {
         nodes {
           id
           isResolved
-          comments(first: 1) {
-            nodes { body path }
+          comments(first: 5) {
+            nodes { body path line author { login } }
           }
         }
       }
     }
   }
 }'
-
-# Reply to a thread (optional but recommended)
-gh api graphql -f query='
-mutation {
-  addPullRequestReviewThreadReply(input: {
-    pullRequestReviewThreadId: "PRRT_xxx"
-    body: "Fixed in commit abc123"
-  }) {
-    comment { id }
-  }
-}'
-
-# Resolve the thread
-gh api graphql -f query='
-mutation {
-  resolveReviewThread(input: {
-    threadId: "PRRT_xxx"
-  }) {
-    thread { isResolved }
-  }
-}'
 ```
+
+Filter to unresolved threads: look for `"isResolved": false`. If there are zero unresolved threads, you can skip to step 4. Otherwise, you MUST address every single one.
+
+**Step 3b: For EACH unresolved thread, do ALL of the following:**
+
+1. **Read the comment** to understand what's being requested
+2. **Read the relevant code** in the file/line mentioned
+3. **Make the requested change** (or explain why not if you disagree)
+4. **Reply to the thread** explaining what you did:
+   ```bash
+   gh api graphql -f query='
+   mutation {
+     addPullRequestReviewThreadReply(input: {
+       pullRequestReviewThreadId: "PRRT_xxx"
+       body: "Fixed in commit abc123"
+     }) {
+       comment { id }
+     }
+   }'
+   ```
+5. **Resolve the thread** — this is MANDATORY, do not skip:
+   ```bash
+   gh api graphql -f query='
+   mutation {
+     resolveReviewThread(input: {
+       threadId: "PRRT_xxx"
+     }) {
+       thread { isResolved }
+     }
+   }'
+   ```
+
+**Step 3c: Verify all threads are resolved (MANDATORY)**
+
+After addressing all threads, re-run the GraphQL query from step 3a and confirm zero unresolved threads remain. If any remain, go back and address them.
 
 Tips:
 - Address comments in file order to avoid line number shifts
 - If a comment is unclear, ask the user for clarification
 - If you disagree with a suggestion, explain why in your reply and still resolve the thread
 - Always reply before resolving so reviewers can see what action was taken
+- Commit and push your fixes before replying/resolving so you can reference the commit hash
 
 ### 4. Resolve Merge Conflicts
 
@@ -213,8 +215,8 @@ gh pr view --json mergeable,mergeStateStatus,reviewDecision
 
 ## Important Notes
 
+- **EVERY unresolved review thread must be addressed and resolved** — this is the most important part of getting a PR to green. Do not skip this step or treat it as optional. Always verify with a follow-up GraphQL query that zero unresolved threads remain.
 - **Ask before force-pushing** if there might be other collaborators on the branch
-- **Resolve review threads after addressing them** - reply explaining what you did, then resolve
 - **Run type checking frequently** to catch issues early
 - **Commit logically** - group related fixes together
 - If checks keep failing after fixes, read the CI logs carefully:
@@ -229,39 +231,45 @@ gh pr view --json mergeable,mergeStateStatus,reviewDecision
 gh pr view --json number,title,mergeable,mergeStateStatus,reviewDecision
 gh pr checks
 
-# 2. Get review threads (including their IDs for resolving later)
+# 2. MANDATORY: Fetch ALL review threads and find unresolved ones
 gh api graphql -f query='{
   repository(owner: "OWNER", name: "REPO") {
     pullRequest(number: PR_NUM) {
-      reviewThreads(first: 50) {
-        nodes { id isResolved comments(first: 1) { nodes { body path } } }
+      reviewThreads(first: 100) {
+        nodes { id isResolved comments(first: 5) { nodes { body path line author { login } } } }
       }
     }
   }
 }'
 
-# 3. Address each comment by reading and editing the relevant files
+# 3. Address each unresolved thread: read code, make fix, commit
 
-# 4. Reply to and resolve each addressed thread
-gh api graphql -f query='mutation { addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: "PRRT_xxx", body: "Fixed by adding useEffect to reset state" }) { comment { id } } }'
+# 4. Push fixes
+git push
+
+# 5. Reply to and resolve EVERY addressed thread
+gh api graphql -f query='mutation { addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: "PRRT_xxx", body: "Fixed in abc123 — added encodeURIComponent" }) { comment { id } } }'
 gh api graphql -f query='mutation { resolveReviewThread(input: { threadId: "PRRT_xxx" }) { thread { isResolved } } }'
 
-# 5. If there are conflicts, rebase
+# 6. VERIFY: Re-fetch threads and confirm zero unresolved remain
+# (Re-run the GraphQL query from step 2, filter for isResolved: false)
+
+# 7. If there are merge conflicts, rebase
 git fetch origin
 git rebase origin/main
 # ... resolve conflicts ...
 git add .
 git rebase --continue
 
-# 6. Fix any failing checks
+# 8. Fix any failing checks
 npm run tsgo:check
 npm run lint:fix
 npm test
 
-# 7. Push and wait for checks (blocks until complete, fails fast)
+# 9. Push and wait for checks (blocks until complete, fails fast)
 git push --force-with-lease
 gh pr checks --watch --fail-fast
 
-# 8. If checks failed, fix and repeat. Once green:
+# 10. If checks failed, fix and repeat. Once green:
 gh pr view --json mergeable,mergeStateStatus,reviewDecision
 ```
