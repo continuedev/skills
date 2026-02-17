@@ -4,7 +4,7 @@ Reusable skills for Claude Code and other AI agents.
 
 ## check
 
-Runs checks locally against your current diff, simulating the GitHub PR checks experience. Use `/check` in your coding agent to review changes before pushing.
+Runs checks locally against your current diff, simulating the GitHub PR checks experience. Use `/check` in your coding agent to review changes before pushing. See [here](https://docs.continue.dev/checks/running-locally) for details.
 
 ```bash
 npx skills add continuedev/skills --skill check
@@ -12,7 +12,7 @@ npx skills add continuedev/skills --skill check
 
 ## writing-checks
 
-Teaches your agent how to write Continue check files — markdown-defined AI agents that review pull requests.
+Teaches your agent how to write Continue check files — markdown-defined AI agents that review pull requests. You can run them [locally](https://docs.continue.dev/checks/running-locally) or [in CI](https://docs.continue.dev/checks/running-in-ci).
 
 ```bash
 npx skills add continuedev/skills --skill writing-checks
