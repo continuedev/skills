@@ -301,12 +301,75 @@ Key principles:
 
 Reference implementation: `next-geo/scripts/postinstall.js` and `next-geo/package.json`
 
-## Step 9: Manual GitHub settings checklist
+## Step 9: GitHub repo settings
 
-After all files are committed and pushed, instruct the user to configure these settings manually in the GitHub UI:
+After all files are committed and pushed, configure the repo via the GitHub API using `gh`. Do **not** ask the user to do these manually — automate them.
 
-- [ ] **Description** — Set the repo description to match the README tagline
-- [ ] **Website** — Set to `https://continue.dev` or the project's docs URL
-- [ ] **Topics** — Add relevant topics (e.g., `nextjs`, `markdown`, `llm`, `content-negotiation`)
-- [ ] **Social preview** — Upload the screenshot of `og-card.html`
-- [ ] **Branch protection** — Require PR reviews and status checks on `main`
+### 9a: Description, website, and topics
+
+Use `gh api` to PATCH the repo with description (from the README tagline), homepage URL, and relevant topics:
+
+```bash
+gh api repos/{owner}/{repo} --method PATCH --input - <<'EOF'
+{
+  "description": "{one-line description from README}",
+  "homepage": "https://continue.dev",
+  "topics": ["relevant", "topics", "for", "the", "project"]
+}
+EOF
+```
+
+Choose topics relevant to the project's ecosystem and purpose (e.g., `webhooks`, `cli`, `go`, `nextjs`, `react`, `automation`).
+
+### 9b: Branch protection ruleset
+
+Create a ruleset requiring PR reviews and status checks on `main`:
+
+```bash
+gh api repos/{owner}/{repo}/rulesets --method POST --input - <<'EOF'
+{
+  "name": "Protect main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          {
+            "context": "{ci-job-name}"
+          }
+        ]
+      }
+    }
+  ]
+}
+EOF
+```
+
+Set `{ci-job-name}` to match the job name from the CI workflow created in Step 7 (e.g., `test`, `build`, `release`).
+
+### 9c: Social preview (manual)
+
+The social preview image cannot be uploaded via the API. Instruct the user to:
+
+1. Open `.github/assets/og-card.html` in a browser
+2. Screenshot at 1280x640
+3. Upload in Settings → General → Social preview
