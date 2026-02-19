@@ -75,15 +75,19 @@ Create these files in `.github/` (skip any that already exist and are adequate):
 
 ### LICENSE (repo root)
 
-If missing, create `LICENSE` at the repo root matching the `license` field in the package manifest. For MIT:
+All Continue repos use the **Apache-2.0** license. Create `LICENSE` at the repo root with the full Apache License 2.0 text and this copyright notice at the end:
 
 ```
-MIT License
-
 Copyright (c) 2025 Continue Dev, Inc.
 
-[standard MIT text]
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
 ```
+
+Also ensure the `license` field in the package manifest (`package.json`, `Cargo.toml`, etc.) is set to `Apache-2.0`.
 
 ### CONTRIBUTING.md
 
