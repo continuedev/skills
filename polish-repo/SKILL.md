@@ -16,7 +16,7 @@ Before making any changes, understand what you're working with:
 
 1. **Read the package manifest** — `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, etc. Note the project name, description, license field, and any existing scripts.
 2. **Check for CI workflows** — look in `.github/workflows/` for existing build, test, and release pipelines.
-3. **Check for branding assets** — look for banner images, logos, or OG cards in `.github/assets/`, `public/`, or the repo root. If none exist, check sibling repos for shared Continue branding (e.g., `continue-banner.png`, `logo-black-text.png`).
+3. **Check for branding assets** — look for banner images, logos, or OG cards in `.github/assets/`, `public/`, or the repo root. If none exist, download the shared Continue banner from `https://raw.githubusercontent.com/continuedev/continue/main/media/github-readme.png` and save it as `.github/assets/continue-banner.png`.
 4. **Determine ecosystem** — npm/Node.js, Go, Rust, Python, etc. This affects publishing setup and contributing instructions.
 5. **Read the existing README** — understand what documentation already exists so you preserve and improve it rather than losing content.
 6. **Check for existing community files** — `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, issue templates, PR templates.
