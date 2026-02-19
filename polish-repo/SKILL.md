@@ -196,10 +196,34 @@ Copy the watercolor background image from another Continue repo's `.github/asset
 
 Reference implementation: `next-geo/.github/assets/og-card.html`
 
-After creating, instruct the user to:
-1. Open the HTML file in a browser
-2. Screenshot at 1280x640
-3. Upload as the repo's social preview in Settings → General → Social preview
+After creating the HTML, also **pre-crop** the background image to exactly 1280x640 so headless rendering doesn't depend on `object-fit`:
+
+```bash
+sips --resampleWidth 1280 .github/assets/og-bg.png --out /tmp/og-bg-resized.png
+sips --cropOffset 0 0 -c 640 1280 /tmp/og-bg-resized.png --out .github/assets/og-bg-card.png
+```
+
+Reference `og-bg-card.png` in the HTML `<img>` tag with explicit `width: 1280px; height: 640px` — no `object-fit` needed.
+
+Then generate the screenshot with Puppeteer (not Chrome's `--screenshot` flag, which leaves rendering artifacts):
+
+```bash
+npx -y puppeteer browsers install chrome
+node -e "
+import puppeteer from 'puppeteer';
+const browser = await puppeteer.launch({ headless: true });
+const page = await browser.newPage();
+await page.setViewport({ width: 1280, height: 640, deviceScaleFactor: 1 });
+await page.goto('file://$(pwd)/.github/assets/og-card.html', { waitUntil: 'networkidle0' });
+await page.screenshot({ path: '/tmp/og-card.png', clip: { x: 0, y: 0, width: 1280, height: 640 } });
+await browser.close();
+"
+sips -s format jpeg -s formatOptions 85 /tmp/og-card.png --out .github/assets/og-card.jpg
+```
+
+**Important:** Verify the image visually before committing — check that the background fills edge to edge with no dark strips or blank space. The image must be under 1MB (JPEG at 85% quality typically produces ~300KB).
+
+Commit `og-card.html` and `og-card.jpg`. The social preview image must be uploaded manually in Settings → General → Social preview (no API for this).
 
 ## Step 5: Usage skill
 
