@@ -175,18 +175,20 @@ changelog:
 
 Create `.github/assets/og-card.html` — a self-contained 1280x640 HTML file that can be screenshotted for the GitHub social preview.
 
-Copy one of the hero background images from Continue's shared assets (`heroBackground/` in the website repo) into `.github/assets/` to use as a subtle ambient element.
+Copy the watercolor background image from another Continue repo's `.github/assets/og-bg.png` (e.g., `next-geo`) into `.github/assets/` to use as the ambient background.
 
-**Design — match the continue.dev/home cleanroom aesthetic:**
-- **Background:** Off-white (`hsl(0 0% 95.3%)`) matching the homepage
-- **Ambient image:** Position the hero background image in the top-right at very low opacity (~12%) with a slight blur, as a soft prismatic glow — not as a full-bleed background
+**Design — dark theme with watercolor background and Continue logo:**
+- **Background:** Dark navy (`#1a1a2e`) as the base color
+- **Watercolor image:** Full-bleed `og-bg.png` behind everything via `background: url('./og-bg.png') center/cover no-repeat`
+- **Gradient overlay:** Left-to-right gradient darkening the left side for text readability: `rgba(10, 10, 30, 0.7)` on the left fading to `rgba(10, 10, 30, 0.15)` on the right
 - **Typography:** IBM Plex Sans (light 300 weight for the title, regular 400 for tagline) + IBM Plex Mono (400 for labels and the install command). Load from Google Fonts.
-- **Title:** Large (~80px), light weight, tight tracking (-2px), color `rgba(0,0,0,0.88)`
-- **Tagline:** Below the title, ~24px, `rgba(0,0,0,0.4)`
-- **Label:** Small monospace "CONTINUE" label above the title, uppercase, wide tracking (0.2em), `rgba(0,0,0,0.3)`
-- **Install pill:** Monospace install command (e.g., `npm install {package}`) in a pill with `rgba(0,0,0,0.04)` background and `rgba(0,0,0,0.06)` border — matching the homepage's chip/input style
-- **Footer:** Thin rule (`rgba(0,0,0,0.06)`) near the bottom, Continue logo at reduced opacity on the left, `continue.dev` in small monospace on the right
-- **Overall feel:** Clean, minimal, generous whitespace, Swiss-inspired — premium but not flashy
+- **Title:** Large (~80px), light weight, tight tracking (-2px), color `rgba(255, 255, 255, 0.95)`
+- **Tagline:** Below the title, ~24px, `rgba(255, 255, 255, 0.6)`
+- **Label:** Small monospace "CONTINUE" label above the title, uppercase, wide tracking (0.2em), `rgba(255, 255, 255, 0.5)`
+- **Install pill:** Monospace install command (e.g., `npm install {package}`) in a pill with `rgba(255, 255, 255, 0.08)` background and `rgba(255, 255, 255, 0.15)` border
+- **Continue logo:** Large (~520px) Continue SVG icon on the right side, vertically centered, white fill — serves as the primary visual element
+- **Layout:** Text content on the left (padded 100px), logo on the right
+- **Overall feel:** Dark, atmospheric, professional — the watercolor background adds visual richness while the gradient keeps text readable
 
 Reference implementation: `next-geo/.github/assets/og-card.html`
 
