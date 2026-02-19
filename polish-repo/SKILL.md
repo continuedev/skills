@@ -175,13 +175,20 @@ changelog:
 
 Create `.github/assets/og-card.html` — a self-contained 1280x640 HTML file that can be screenshotted for the GitHub social preview.
 
-Template:
-- Black background with banner image as semi-transparent overlay (if available) or a gradient fallback
-- Project name as large centered heading
-- Tagline below
-- `npm install {package}` or equivalent install command in a pill/badge
+Copy one of the hero background images from Continue's shared assets (`heroBackground/` in the website repo) into `.github/assets/` to use as a subtle ambient element.
 
-The HTML should be fully self-contained (inline styles, no external dependencies) so it renders correctly when opened in any browser.
+**Design — match the continue.dev/home cleanroom aesthetic:**
+- **Background:** Off-white (`hsl(0 0% 95.3%)`) matching the homepage
+- **Ambient image:** Position the hero background image in the top-right at very low opacity (~12%) with a slight blur, as a soft prismatic glow — not as a full-bleed background
+- **Typography:** IBM Plex Sans (light 300 weight for the title, regular 400 for tagline) + IBM Plex Mono (400 for labels and the install command). Load from Google Fonts.
+- **Title:** Large (~80px), light weight, tight tracking (-2px), color `rgba(0,0,0,0.88)`
+- **Tagline:** Below the title, ~24px, `rgba(0,0,0,0.4)`
+- **Label:** Small monospace "CONTINUE" label above the title, uppercase, wide tracking (0.2em), `rgba(0,0,0,0.3)`
+- **Install pill:** Monospace install command (e.g., `npm install {package}`) in a pill with `rgba(0,0,0,0.04)` background and `rgba(0,0,0,0.06)` border — matching the homepage's chip/input style
+- **Footer:** Thin rule (`rgba(0,0,0,0.06)`) near the bottom, Continue logo at reduced opacity on the left, `continue.dev` in small monospace on the right
+- **Overall feel:** Clean, minimal, generous whitespace, Swiss-inspired — premium but not flashy
+
+Reference implementation: `next-geo/.github/assets/og-card.html`
 
 After creating, instruct the user to:
 1. Open the HTML file in a browser
@@ -248,7 +255,47 @@ Summary:
 3. Set up version injection via ldflags
 4. Document the release process (`git tag v1.0.0 && git push origin v1.0.0`)
 
-## Step 8: Manual GitHub settings checklist
+## Step 8: Postinstall message (npm packages)
+
+For npm packages that have a companion skill, add a postinstall script that tells users how to get started with a coding agent. This runs after `npm install` and prints a short message.
+
+Create `scripts/postinstall.js`:
+
+```js
+#!/usr/bin/env node
+
+// Skip during CI or global installs
+if (process.env.CI || process.env.npm_config_global) {
+  process.exit(0);
+}
+
+const name = "{package-name}";
+const skill = "{skill-name}";
+const org = "continuedev/skills";
+
+console.log();
+console.log(`  ${name} installed.`);
+console.log();
+console.log(`  Get started with a coding agent:`);
+console.log(`    npx skills add ${org} --skill ${skill}`);
+console.log();
+console.log(`  Then ask your agent: "Set up ${name} in this project."`);
+console.log();
+```
+
+Then update `package.json`:
+- Add `"postinstall": "node scripts/postinstall.js || true"` to `scripts` (the `|| true` prevents install failures if the script errors)
+- Add `"scripts"` to the `files` array so it's included in the published package
+
+Key principles:
+- **Keep it short** — 5 lines max, no ASCII art, no color codes
+- **Fail silently** — use `|| true` so the postinstall never blocks installation
+- **Skip in CI** — check `process.env.CI` to avoid noise in automated environments
+- **One clear action** — the `npx skills add` command is the main CTA
+
+Reference implementation: `next-geo/scripts/postinstall.js` and `next-geo/package.json`
+
+## Step 9: Manual GitHub settings checklist
 
 After all files are committed and pushed, instruct the user to configure these settings manually in the GitHub UI:
 
