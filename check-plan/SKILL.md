@@ -35,28 +35,25 @@ Glob `.continue/checks/*.md` to find all check files, then **filter to only thes
 
 Present the user with the list of checks that will run, then proceed immediately without waiting.
 
-### 3. Run checks in parallel (background agents)
+### 3. Run all checks in parallel via shell script
 
-For each relevant check file, spawn a sub-agent with these settings:
-- `subagent_type: "general-purpose"`
-- `model: "haiku"` (fast and cheap for review tasks)
-- `run_in_background: true`
+Run all checks with a single Bash command using the `run-checks.sh` script bundled with this skill. The script spawns parallel `claude -p` processes (one per check) and writes all results to `/tmp/check-plan-results.txt`.
 
-Use this prompt structure (2 lines — the sub-agent reads its full instructions from disk):
-
+```bash
+bash {absolute path to .claude/skills/check-plan/run-checks.sh} \
+  /tmp/check-plan.md \
+  {absolute path to .claude/skills/check-plan/references/review-prompt.md} \
+  {absolute path to .continue/checks/check1.md} \
+  {absolute path to .continue/checks/check2.md} \
+  ... \
+  > /tmp/check-plan-results.txt 2>&1
 ```
-Review the implementation plan at /tmp/check-plan.md against the check at {absolute path to .continue/checks/xxx.md}.
-Read your detailed review instructions from: {absolute path to .claude/skills/check-plan/references/review-prompt.md}
-```
 
-Launch ALL sub-agents in a single message (all Task tool calls together).
+Run this with a generous timeout (5 minutes / 300000ms).
 
-### 4. Collect results efficiently
+### 4. Parse results
 
-After launching all agents, wait for them to complete by reading their output files. **Do NOT read full outputs into your context.** Instead:
-
-- For each background agent, use Bash to read just the last 30 lines of its output file: `tail -30 {output_file}`
-- Parse whether it says PASS or FAIL and extract the key findings.
+Read `/tmp/check-plan-results.txt`. It contains `=== check-name ===` sections, each with a PASS or FAIL verdict and findings.
 
 ### 5. Act on results
 
