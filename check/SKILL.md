@@ -1,72 +1,50 @@
 ---
 name: check
-description: Runs .continue/agents checks locally against the current diff, simulating the GitHub PR checks experience. Use when the user says /check to review their changes before pushing.
+description: Runs .continue/checks locally against the current diff or plan. Auto-detects mode — in plan mode it reviews the plan, otherwise it reviews the git diff. Use when the user says /check.
 ---
 
-# Local Agent Checks
+# Unified Check Runner
 
-Run every `.continue/agents/*.md` check against the current changes, just like the GitHub PR checks do in CI.
+Run relevant `.continue/checks/*.md` checks against either the current **git diff** (before pushing) or the current **implementation plan** (before coding). The mode is auto-detected.
 
 ## Workflow
 
-### 1. Gather context (write to disk, NOT into your context)
+### 1. Detect mode
 
-- Run `git diff main...HEAD` and write it to `/tmp/check-diff.patch`. If the diff is empty, also try `git diff --cached` and `git diff`.
-  - **Cap the diff**: If the diff exceeds 3000 lines, truncate it to 3000 lines when writing. Add a final line: `\n... (diff truncated at 3000 lines)`.
-  - Use a single bash command like: `git diff main...HEAD | head -3000 > /tmp/check-diff.patch`
-- Run `git log main..HEAD --oneline` and write it to `/tmp/check-log.txt`.
+- **Plan mode**: If you are currently in plan mode (plan mode system message is present), this is a **plan check**. Determine the plan file path from the plan mode system message.
+- **Diff mode**: Otherwise, this is a **diff check**.
+
+### 2. Pre-flight (diff mode only)
+
+For diff mode, verify there are actual changes to check:
+- Run `git diff main...HEAD` — if empty, also try `git diff --cached` and `git diff`.
 - If there are no changes at all, tell the user and stop.
-- **Do NOT read these files back into your own context.** The sub-agents will read them directly.
 
-### 2. Discover agent checks
+### 3. Run checks via shell script
 
-- Glob `.continue/agents/*.md` to find all agent check files.
-- **Do NOT read the agent files.** Just extract the filename and use it to derive the check name (e.g., `code-conventions.md` → "Code Conventions").
-- Present the user with the list of checks that will run, then proceed immediately without waiting.
+Tell the user which mode was detected and that the following checks will run: architecture-boundaries, code-conventions, database-migrations, security, telemetry-integrity, test-quality, typeorm-cascade-check, terraform-env-vars, mobile-layout (only those that exist as `.continue/checks/*.md` files).
 
-### 3. Run checks in parallel (background agents)
+Then run a single **foreground** Bash command with a generous timeout (5 minutes / 300000ms):
 
-For each agent check file, spawn a sub-agent with these settings:
-- `subagent_type: "general-purpose"`
-- `model: "haiku"` (fast and cheap for review tasks)
-- `run_in_background: true`
-
-Use this prompt structure:
-
-```
-You are a code reviewer running an automated check on a pull request.
-
-## Setup
-1. Read your check instructions from: {absolute path to .continue/agents/xxx.md}
-2. Read the diff from: /tmp/check-diff.patch
-3. Read the commit log from: /tmp/check-log.txt
-
-## Your Task
-Review the diff according to your check instructions. For each finding:
-1. State the severity (Error / Warning / Info)
-2. Reference the specific file and line from the diff
-3. Explain what's wrong and how to fix it
-
-If everything looks good and you have no findings, say "PASS" and briefly explain why the changes are clean for your check.
-
-If you have findings, say "FAIL" and list them.
-
-Keep your response concise. Do not repeat the diff back. Focus only on actionable findings.
-Your final message must start with either "PASS" or "FAIL" on its own line.
+**Plan mode:**
+```bash
+bash {absolute path to .claude/skills/check/run-checks.sh} --mode plan {plan-file-path}
 ```
 
-Launch ALL sub-agents in a single message (all Task tool calls together).
+**Diff mode:**
+```bash
+bash {absolute path to .claude/skills/check/run-checks.sh} --mode diff
+```
 
-### 4. Collect results efficiently
+Progress lines will stream live. Full detailed results are written to `/tmp/check-results.txt`.
 
-After launching all agents, wait for them to complete by reading their output files. **Do NOT read full outputs into your context.** Instead:
+### 4. Parse results
 
-- For each background agent, use Bash to read just the last 30 lines of its output file: `tail -30 {output_file}`
-- Parse whether it says PASS or FAIL and extract the key findings.
+Read `/tmp/check-results.txt`. It contains `=== check-name ===` sections, each with a PASS or FAIL verdict and findings.
 
 ### 5. Summarize results
 
-Present a summary table with emoji status indicators:
+Present a summary table:
 
 ```
 | Check | Result |
@@ -83,9 +61,22 @@ Use these emojis:
 - ❌ = has Error-severity findings
 - ⚠️ = has Warning-severity findings but no errors
 
-### 6. Triage findings interactively
+### 6. Act on results (mode-dependent)
 
-Do NOT dump all failure details in a big block. Instead, use AskUserQuestion to present each failed check's findings and let the user decide what to do.
+#### Plan mode
+
+1. **For obvious fixes** (e.g., plan forgot to mention a migration, missing a security step that's clearly needed): directly update the plan to incorporate the fix. Tell the user what you changed and why.
+
+2. **For ambiguous findings** (e.g., the check raises a valid architectural question with multiple possible answers): use `AskUserQuestion` to present the issue and let the user decide before updating the plan. Include:
+   - The check name as the header
+   - A concise description of the concern
+   - Options for how to resolve it in the plan
+
+3. After all findings are addressed, present the updated plan to the user for final approval via `ExitPlanMode`.
+
+#### Diff mode
+
+Do NOT dump all failure details in a big block. Instead, use `AskUserQuestion` to present each failed check's findings and let the user decide what to do.
 
 For each check that has findings, present ONE AskUserQuestion with:
 - The check name as the header
